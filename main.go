@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	// version    = "3.0.4"
+	// version    = "0.0.1"
 	base       = "https://api.consumet.org/movies/flixhq"
 	configFile = "/.config/gobster/gobster_config.txt"
 	// historyFile   = "/.config/gobster/gobster_history.txt"

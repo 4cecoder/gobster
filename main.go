@@ -73,15 +73,14 @@ func getConfig(configFile string) (string, string, string, string) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "player=") {
-			player = strings.TrimPrefix(line, "player=")
-		} else if strings.HasPrefix(line, "subs_language=") {
-			subsLanguage = strings.TrimPrefix(line, "subs_language=")
-		} else if strings.HasPrefix(line, "video_quality=") {
-			videoQuality
-
+	player = strings.TrimPrefix(line, "player=")
+} else if strings.HasPrefix(line, "subs_language=") {
+	subsLanguage = strings.TrimPrefix(line, "subs_language=")
+} else if strings.HasPrefix(line, "video_quality=") {
+	videoQuality = strings.TrimPrefix(line, "video_quality=")
 } else if strings.HasPrefix(line, "preferred_server=") {
-			server = strings.TrimPrefix(line, "preferred_server=")
-		}
+	server = strings.TrimPrefix(line, "preferred_server=")
+}
 	}
 
 	return player, subsLanguage, videoQuality, server
@@ -97,11 +96,36 @@ func getSeparator() (string, string) {
 	return separator, pathThing
 }
 
-func playVideo(player, subsLanguage, videoQuality, server, separator, pathThing string) {
-	jsonData, err := getJSONData(base + "/watch?episodeId=" + episodeID + "&mediaId=" + mediaID + "&server=" + server + "&")
-	if err != nil {
-		log.Fatal(err)
+func parseJSONData(jsonData, videoQuality, subsLanguage string) (string, string, string, string, error) {
+	var referrer, mpvLink, subsLinks, videoTitle string
+	lines := strings.Split(jsonData, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "\"Referer\":\"") {
+			referrer = strings.TrimPrefix(line, "\"Referer\":\"")
+			referrer = strings.TrimSuffix(referrer, "\"")
+		} else if strings.Contains(line, "\"url\":\"") && strings.Contains(line, "\"quality\":\""+videoQuality+"\",") {
+			mpvLink = strings.TrimPrefix(line, "\"url\":\"")
+			mpvLink = strings.TrimSuffix(mpvLink, "\",\"quality\":\""+videoQuality+"\",")
+		} else if strings.Contains(line, "\"url\":\"") && strings.Contains(line, "\"lang\":\""+subsLanguage+"\"") {
+			subsLink := strings.TrimPrefix(line, "\"url\":\"")
+			subsLink = strings.TrimSuffix(subsLink, "\",\"lang\":\""+subsLanguage+"\"")
+			subsLinks += strings.Replace(subsLink, ":", pathThing+":", -1) + separator
+		} else if strings.Contains(line, "\"title\":\"") {
+			videoTitle = strings.TrimPrefix(line, "\"title\":\"")
+			videoTitle = strings.TrimSuffix(videoTitle, "\"")
+		}
 	}
+}
+
+func playVideo(player, subsLanguage, videoQuality, server, separator, pathThing string) {
+	episodeID := "12345"
+mediaID := "67890"
+
+jsonData, err := getJSONData(base + "/watch?episodeId=" + episodeID + "&mediaId=" + mediaID + "&server=" + server + "&")
+if err != nil {
+	log.Fatal(err)
+}
+
 
 	referrer, mpvLink, subsLinks, videoTitle, err := parseJSONData(jsonData, videoQuality, subsLanguage)
 	if err != nil {
@@ -162,22 +186,3 @@ func getJSONData(url string) (string, error) {
 }
 
 
-func parseJSONData(jsonData, videoQuality, subsLanguage string) (string, string, string, string, error) {
-	var referrer, mpvLink, subsLinks, videoTitle string
-	lines := strings.Split(jsonData, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "\"Referer\":\"") {
-			referrer = strings.TrimPrefix(line, "\"Referer\":\"")
-			referrer = strings.TrimSuffix(referrer, "\"")
-		} else if strings.Contains(line, "\"url\":\"") && strings.Contains(line, "\"quality\":\""+videoQuality+"\",") {
-			mpvLink = strings.TrimPrefix(line, "\"url\":\"")
-			mpvLink = strings.TrimSuffix(mpvLink, "\",\"quality\":\""+videoQuality+"\",")
-		} else if strings.Contains(line, "\"url\":\"") && strings.Contains(line, "\"lang\":\""+subsLanguage+"\"") {
-			subsLink := strings.TrimPrefix(line, "\"url\":\"")
-			subsLink = strings.TrimSuffix(subsLink, "\",\"lang\":\""+subsLanguage+"\"")
-			subsLinks += strings.Replace(subsLink, ":", pathThing+":", -1) + separator
-		} else if strings.Contains(line, "\"title\":\"") {
-			videoTitle = strings.TrimPrefix(line, "\"title\":\"")
-			videoTitle = strings.TrimSuffix(videoTitle, "\"")
-		}
-	}

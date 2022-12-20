@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	version       = "3.0.4"
-	base          = "https://api.consumet.org/movies/flixhq"
-	configFile    = "/.config/lobster/lobster_config.txt"
-	historyFile   = "/.config/lobster/lobster_history.txt"
+	// version    = "3.0.4"
+	base       = "https://api.consumet.org/movies/flixhq"
+	configFile = "/.config/gobster/gobster_config.txt"
+	// historyFile   = "/.config/gobster/gobster_history.txt"
 	playerDefault = "mpv"
 	subsLanguage  = "English"
 	videoQuality  = "1080p"
@@ -29,7 +29,7 @@ func main() {
 		log.Fatal(err)
 	}
 	configFile := homeDir + configFile
-	historyFile := homeDir + historyFile
+	// historyFile := homeDir + historyFile
 
 	if _, err := os.Stat(homeDir + "/.config/lobster"); os.IsNotExist(err) {
 		err = os.MkdirAll(homeDir+"/.config/lobster", os.ModePerm)
@@ -73,14 +73,14 @@ func getConfig(configFile string) (string, string, string, string) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "player=") {
-	player = strings.TrimPrefix(line, "player=")
-} else if strings.HasPrefix(line, "subs_language=") {
-	subsLanguage = strings.TrimPrefix(line, "subs_language=")
-} else if strings.HasPrefix(line, "video_quality=") {
-	videoQuality = strings.TrimPrefix(line, "video_quality=")
-} else if strings.HasPrefix(line, "preferred_server=") {
-	server = strings.TrimPrefix(line, "preferred_server=")
-}
+			player = strings.TrimPrefix(line, "player=")
+		} else if strings.HasPrefix(line, "subs_language=") {
+			subsLanguage = strings.TrimPrefix(line, "subs_language=")
+		} else if strings.HasPrefix(line, "video_quality=") {
+			videoQuality = strings.TrimPrefix(line, "video_quality=")
+		} else if strings.HasPrefix(line, "preferred_server=") {
+			server = strings.TrimPrefix(line, "preferred_server=")
+		}
 	}
 
 	return player, subsLanguage, videoQuality, server
@@ -96,7 +96,7 @@ func getSeparator() (string, string) {
 	return separator, pathThing
 }
 
-func parseJSONData(jsonData, videoQuality, subsLanguage string) (string, string, string, string, error) {
+func parseJSONData(jsonData, videoQuality, subsLanguage, separator, pathThing string) (string, string, string, string, error) {
 	var referrer, mpvLink, subsLinks, videoTitle string
 	lines := strings.Split(jsonData, "\n")
 	for _, line := range lines {
@@ -115,41 +115,41 @@ func parseJSONData(jsonData, videoQuality, subsLanguage string) (string, string,
 			videoTitle = strings.TrimSuffix(videoTitle, "\"")
 		}
 	}
+	return referrer, mpvLink, subsLinks, videoTitle, nil
 }
 
 func playVideo(player, subsLanguage, videoQuality, server, separator, pathThing string) {
 	episodeID := "12345"
-mediaID := "67890"
+	mediaID := "67890"
 
-jsonData, err := getJSONData(base + "/watch?episodeId=" + episodeID + "&mediaId=" + mediaID + "&server=" + server + "&")
-if err != nil {
-	log.Fatal(err)
-}
-
-
-	referrer, mpvLink, subsLinks, videoTitle, err := parseJSONData(jsonData, videoQuality, subsLanguage)
+	jsonData, err := getJSONData(base + "/watch?episodeId=" + episodeID + "&mediaId=" + mediaID + "&server=" + server + "&")
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	referrer, mpvLink, subsLinks, videoTitle, err := parseJSONData(jsonData, videoQuality, subsLanguage, separator, pathThing)
+	if err != nil {
+		fmt.Print(err)
 	}
 
 	if player == "iina" {
 		cmd := exec.Command("iina", "--no-stdin", "--keep-running", "--mpv-referrer="+referrer, "--mpv-sub-files="+subsLinks, "--mpv-force-media-title="+videoTitle, mpvLink)
 		err = cmd.Run()
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println (err)
 		}
 	} else if player == "vlc" {
 		if runtime.GOOS == "android" {
 			cmd := exec.Command("am", "start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", mpvLink, "-n", "org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity", "-e", "title", videoTitle)
 			err = cmd.Run()
 			if err != nil {
-				log.Fatal(err)
+				fmt.Println(err)
 			}
 		} else {
 			cmd := exec.Command("vlc", mpvLink, "--http-referrer="+referrer, "--meta-title", videoTitle)
 			err = cmd.Run()
 			if err != nil {
-				log.Fatal(err)
+				fmt.Println(err)
 			}
 		}
 	} else {
@@ -157,18 +157,17 @@ if err != nil {
 			cmd := exec.Command("am", "start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", mpvLink, "-n", "is.tinyplayer/.TinyPlayerActivity", "-e", "title", videoTitle)
 			err = cmd.Run()
 			if err != nil {
-				log.Fatal(err)
+				fmt.Println(err)
 			}
 		} else {
-        cmd := exec.Command(player, "--http-referrer="+referrer, "--sub-files="+subsLinks, mpvLink)
+			cmd := exec.Command(player, "--http-referrer="+referrer, "--sub-files="+subsLinks, mpvLink)
 			err = cmd.Run()
 			if err != nil {
-				log.Fatal(err)
+				fmt.Println(err)
 			}
 		}
 	}
 }
-
 
 func getJSONData(url string) (string, error) {
 	resp, err := http.Get(url)
@@ -184,5 +183,3 @@ func getJSONData(url string) (string, error) {
 
 	return string(body), nil
 }
-
-
